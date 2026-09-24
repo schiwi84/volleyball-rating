@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#7c3aed">
+  <title>Volleyball Spieler-Rating</title>
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #e0e7ff 0%, #f0fdf4 50%, #fae8ff 100%);
+      --card-bg: rgba(255, 255, 255, 0.95);
+      --primary-gradient: linear-gradient(135deg, #2563eb, #7c3aed);
+      --star-active: linear-gradient(135deg, #f59e0b, #fbbf24);
+      --text-main: #1e293b;
+      --male-color: #1d4ed8;
+      --female-color: #db2777;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html {
+      -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f1f5f9;
+      background-image: var(--bg-gradient);
+      /* fixed background kann auf iOS beim Scrollen ruckeln, scroll ist flüssiger */
+      background-attachment: scroll;
+      margin: 0;
+      padding: 15px;
+      padding-top: max(15px, env(safe-area-inset-top, 0px));
+      padding-bottom: max(15px, env(safe-area-inset-bottom, 0px));
+      color: var(--text-main);
+      touch-action: manipulation;
+    }
+
+    .container {
+      max-width: 650px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      padding: 22px;
+      border-radius: 16px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+      border: 1px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .ios-notice {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 0.85em;
+      margin-bottom: 15px;
+      line-height: 1.4;
+    }
+
+    .header h1 {
+      text-align: center;
+      margin: 0 0 6px 0;
+      font-size: 1.6em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: #0f172a;
+    }
+
+    .header-logo {
+      width: 38px;
+      height: 38px;
+      flex-shrink: 0;
+    }
+
+    p.subtitle {
+      text-align: center;
+      color: #64748b;
+      margin-bottom: 20px;
+      font-size: 0.9em;
+    }
+
+    .rater-box {
+      margin-bottom: 22px;
+      padding: 16px;
+      background: linear-gradient(135deg, #eff6ff, #e0f2fe);
+      border: 1px solid #bae6fd;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.08);
+    }
+
+    .rater-box label {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 4px;
+      font-size: 0.9em;
+      color: #0369a1;
+    }
+
+    .rater-box select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #7dd3fc;
+      border-radius: 8px;
+      box-sizing: border-box;
+      font-size: 16px; /* verhindert Auto-Zoom bei Fokus auf iOS Safari */
+      background: #fff;
+      color: var(--text-main);
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230369a1' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      background-size: 18px;
+      padding-right: 36px;
+    }
+
+    .player-row {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f5f9;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border-radius: 8px;
+    }
+
+    .player-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .player-name {
+      font-weight: 800;
+      font-size: 1.05em;
+      letter-spacing: 0.2px;
+    }
+
+    .player-name.m { color: var(--male-color); }
+    .player-name.w { color: var(--female-color); }
+
+    .rating-options {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 4px;
+      width: 100%;
+    }
+
+    .rating-options input[type="radio"] { display: none; }
+
+    .rating-options label {
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82em;
+      font-weight: 700;
+      color: #475569;
+      transition: all 0.15s ease;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* Auf schmalen Displays (iPhone SE etc.) zwei Zeilen à 5 Sterne statt 10 gequetschter Buttons */
+    @media (max-width: 400px) {
+      .rating-options {
+        grid-template-columns: repeat(5, 1fr);
+        gap: 5px;
+      }
+      .rating-options label {
+        min-height: 38px;
+        font-size: 0.85em;
+      }
+    }
+
+    .rating-options input[type="radio"]:checked + label {
+      background: var(--star-active);
+      border-color: #d97706;
+      color: #000;
+      font-weight: 800;
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.4);
+    }
+
+    .btn-submit {
+      width: 100%;
+      margin-top: 25px;
+      padding: 16px;
+      min-height: 50px;
+      background: var(--primary-gradient);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.05em;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+      touch-action: manipulation;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .btn-submit:active {
+      transform: scale(0.98);
+    }
+
+    #resultPanel {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .result-success {
+      font-size: 1.1em;
+      font-weight: 800;
+      text-align: center;
+      color: #15803d;
+    }
+
+    .result-hint {
+      font-size: 0.9em;
+      color: #475569;
+      text-align: center;
+      margin: 0;
+    }
+
+    #resultText {
+      width: 100%;
+      min-height: 220px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 13px;
+      line-height: 1.4;
+      resize: vertical;
+      background: #f8fafc;
+      color: var(--text-main);
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 14px;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 1em;
+      font-weight: 700;
+      color: #1e293b;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .copy-status {
+      text-align: center;
+      font-size: 0.9em;
+      min-height: 1.2em;
+      color: #15803d;
+      font-weight: 700;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="ios-notice">
+      📱 <strong>Hinweis zur Bedienung:</strong> Öffne die Datei am besten im echten Browser (Safari/Chrome), nicht im WhatsApp-internen Browser. Tippe dazu oben rechts auf <strong>⋮</strong> (Android) bzw. das <strong>Teilen-Symbol</strong> (iPhone) und wähle „Im Browser öffnen“. So funktioniert das Speichern/Teilen der Bewertung zuverlässig.
+    </div>
+
+    <div class="header">
+      <h1>
+        <svg class="header-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 50,5 C 25,5 5,25 5,50 C 5,75 25,95 50,95 C 70,95 95,95 95,95 C 95,95 95,70 95,50 C 95,25 75,5 50,5 Z" fill="#e5002e"/>
+          <g fill="#ffffff">
+            <rect x="37" y="23" width="7" height="23"/><rect x="23" y="23" width="14" height="6"/><rect x="25" y="34" width="12" height="5"/>
+            <rect x="56" y="23" width="7" height="23"/><rect x="63" y="23" width="14" height="6"/><rect x="63" y="34" width="12" height="5"/>
+            <rect x="37" y="54" width="7" height="23"/><rect x="23" y="71" width="14" height="6"/><rect x="25" y="61" width="12" height="5"/>
+            <rect x="56" y="54" width="7" height="23"/><rect x="63" y="71" width="14" height="6"/><rect x="63" y="61" width="12" height="5"/>
+          </g>
+        </svg>
+        Spieler-Bewertung
+      </h1>
+      <p class="subtitle">Wähle deinen Namen und deine Wunsch-Rolle. Tippe danach bei jedem Spieler auf die Stern-Anzahl (1-10).</p>
+    </div>
+    
+    <div id="ratingForm">
+      <div class="rater-box">
+        <div>
+          <label for="raterSelect">Wer bist du?</label>
+          <select id="raterSelect" required>
+            <option value="">Bitte deinen Namen auswählen...</option>
+            <option value="André">André</option>
+            <option value="Angelina">Angelina</option>
+            <option value="Artur">Artur</option>
+            <option value="Bernd">Bernd</option>
+            <option value="Carmen">Carmen</option>
+            <option value="Ehsan">Ehsan</option>
+            <option value="Eric">Eric</option>
+            <option value="Esmée">Esmée</option>
+            <option value="Holger">Holger</option>
+            <option value="Ines">Ines</option>
+            <option value="Jan">Jan</option>
+            <option value="Jenny">Jenny</option>
+            <option value="Magda">Magda</option>
+            <option value="Marc B">Marc B</option>
+            <option value="Marc O">Marc O</option>
+            <option value="Michael">Michael</option>
+            <option value="Nico">Nico</option>
+            <option value="Pascal">Pascal</option>
+            <option value="Piotr">Piotr</option>
+            <option value="Sabina">Sabina</option>
+            <option value="Silvia">Silvia</option>
+            <option value="Simon">Simon</option>
+            <option value="Tanja">Tanja</option>
+            <option value="Thomas">Thomas</option>
+            <option value="Tim">Tim</option>
+            <option value="Volker">Volker</option>
+          </select>
+        </div>
+        <div>
+          <label for="raterPosition">Deine eigene Lieblingsposition / Rolle:</label>
+          <select id="raterPosition" required>
+            <option value="">Bitte deine Wunsch-Rolle wählen...</option>
+            <option value="Allround 🔄">🔄 Allround</option>
+            <option value="Zuspiel 🎯">🎯 Zuspiel</option>
+            <option value="Angriff 💥">💥 Angriff</option>
+            <option value="Abwehr 🛡️">🛡️ Abwehr</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="playerList">
+        
+        <div class="player-row" data-player-name="André">
+          <div class="player-header"><span class="player-name m">André</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Andre_1" name="rating_André" value="1" required><label for="r_Andre_1">1★</label>
+            <input type="radio" id="r_Andre_2" name="rating_André" value="2"><label for="r_Andre_2">2★</label>
+            <input type="radio" id="r_Andre_3" name="rating_André" value="3"><label for="r_Andre_3">3★</label>
+            <input type="radio" id="r_Andre_4" name="rating_André" value="4"><label for="r_Andre_4">4★</label>
+            <input type="radio" id="r_Andre_5" name="rating_André" value="5"><label for="r_Andre_5">5★</label>
+            <input type="radio" id="r_Andre_6" name="rating_André" value="6"><label for="r_Andre_6">6★</label>
+            <input type="radio" id="r_Andre_7" name="rating_André" value="7"><label for="r_Andre_7">7★</label>
+            <input type="radio" id="r_Andre_8" name="rating_André" value="8"><label for="r_Andre_8">8★</label>
+            <input type="radio" id="r_Andre_9" name="rating_André" value="9"><label for="r_Andre_9">9★</label>
+            <input type="radio" id="r_Andre_10" name="rating_André" value="10"><label for="r_Andre_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Angelina">
+          <div class="player-header"><span class="player-name w">Angelina</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Angelina_1" name="rating_Angelina" value="1" required><label for="r_Angelina_1">1★</label>
+            <input type="radio" id="r_Angelina_2" name="rating_Angelina" value="2"><label for="r_Angelina_2">2★</label>
+            <input type="radio" id="r_Angelina_3" name="rating_Angelina" value="3"><label for="r_Angelina_3">3★</label>
+            <input type="radio" id="r_Angelina_4" name="rating_Angelina" value="4"><label for="r_Angelina_4">4★</label>
+            <input type="radio" id="r_Angelina_5" name="rating_Angelina" value="5"><label for="r_Angelina_5">5★</label>
+            <input type="radio" id="r_Angelina_6" name="rating_Angelina" value="6"><label for="r_Angelina_6">6★</label>
+            <input type="radio" id="r_Angelina_7" name="rating_Angelina" value="7"><label for="r_Angelina_7">7★</label>
+            <input type="radio" id="r_Angelina_8" name="rating_Angelina" value="8"><label for="r_Angelina_8">8★</label>
+            <input type="radio" id="r_Angelina_9" name="rating_Angelina" value="9"><label for="r_Angelina_9">9★</label>
+            <input type="radio" id="r_Angelina_10" name="rating_Angelina" value="10"><label for="r_Angelina_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Artur">
+          <div class="player-header"><span class="player-name m">Artur</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Artur_1" name="rating_Artur" value="1" required><label for="r_Artur_1">1★</label>
+            <input type="radio" id="r_Artur_2" name="rating_Artur" value="2"><label for="r_Artur_2">2★</label>
+            <input type="radio" id="r_Artur_3" name="rating_Artur" value="3"><label for="r_Artur_3">3★</label>
+            <input type="radio" id="r_Artur_4" name="rating_Artur" value="4"><label for="r_Artur_4">4★</label>
+            <input type="radio" id="r_Artur_5" name="rating_Artur" value="5"><label for="r_Artur_5">5★</label>
+            <input type="radio" id="r_Artur_6" name="rating_Artur" value="6"><label for="r_Artur_6">6★</label>
+            <input type="radio" id="r_Artur_7" name="rating_Artur" value="7"><label for="r_Artur_7">7★</label>
+            <input type="radio" id="r_Artur_8" name="rating_Artur" value="8"><label for="r_Artur_8">8★</label>
+            <input type="radio" id="r_Artur_9" name="rating_Artur" value="9"><label for="r_Artur_9">9★</label>
+            <input type="radio" id="r_Artur_10" name="rating_Artur" value="10"><label for="r_Artur_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Bernd">
+          <div class="player-header"><span class="player-name m">Bernd</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Bernd_1" name="rating_Bernd" value="1" required><label for="r_Bernd_1">1★</label>
+            <input type="radio" id="r_Bernd_2" name="rating_Bernd" value="2"><label for="r_Bernd_2">2★</label>
+            <input type="radio" id="r_Bernd_3" name="rating_Bernd" value="3"><label for="r_Bernd_3">3★</label>
+            <input type="radio" id="r_Bernd_4" name="rating_Bernd" value="4"><label for="r_Bernd_4">4★</label>
+            <input type="radio" id="r_Bernd_5" name="rating_Bernd" value="5"><label for="r_Bernd_5">5★</label>
+            <input type="radio" id="r_Bernd_6" name="rating_Bernd" value="6"><label for="r_Bernd_6">6★</label>
+            <input type="radio" id="r_Bernd_7" name="rating_Bernd" value="7"><label for="r_Bernd_7">7★</label>
+            <input type="radio" id="r_Bernd_8" name="rating_Bernd" value="8"><label for="r_Bernd_8">8★</label>
+            <input type="radio" id="r_Bernd_9" name="rating_Bernd" value="9"><label for="r_Bernd_9">9★</label>
+            <input type="radio" id="r_Bernd_10" name="rating_Bernd" value="10"><label for="r_Bernd_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Carmen">
+          <div class="player-header"><span class="player-name w">Carmen</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Carmen_1" name="rating_Carmen" value="1" required><label for="r_Carmen_1">1★</label>
+            <input type="radio" id="r_Carmen_2" name="rating_Carmen" value="2"><label for="r_Carmen_2">2★</label>
+            <input type="radio" id="r_Carmen_3" name="rating_Carmen" value="3"><label for="r_Carmen_3">3★</label>
+            <input type="radio" id="r_Carmen_4" name="rating_Carmen" value="4"><label for="r_Carmen_4">4★</label>
+            <input type="radio" id="r_Carmen_5" name="rating_Carmen" value="5"><label for="r_Carmen_5">5★</label>
+            <input type="radio" id="r_Carmen_6" name="rating_Carmen" value="6"><label for="r_Carmen_6">6★</label>
+            <input type="radio" id="r_Carmen_7" name="rating_Carmen" value="7"><label for="r_Carmen_7">7★</label>
+            <input type="radio" id="r_Carmen_8" name="rating_Carmen" value="8"><label for="r_Carmen_8">8★</label>
+            <input type="radio" id="r_Carmen_9" name="rating_Carmen" value="9"><label for="r_Carmen_9">9★</label>
+            <input type="radio" id="r_Carmen_10" name="rating_Carmen" value="10"><label for="r_Carmen_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Ehsan">
+          <div class="player-header"><span class="player-name m">Ehsan</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Ehsan_1" name="rating_Ehsan" value="1" required><label for="r_Ehsan_1">1★</label>
+            <input type="radio" id="r_Ehsan_2" name="rating_Ehsan" value="2"><label for="r_Ehsan_2">2★</label>
+            <input type="radio" id="r_Ehsan_3" name="rating_Ehsan" value="3"><label for="r_Ehsan_3">3★</label>
+            <input type="radio" id="r_Ehsan_4" name="rating_Ehsan" value="4"><label for="r_Ehsan_4">4★</label>
+            <input type="radio" id="r_Ehsan_5" name="rating_Ehsan" value="5"><label for="r_Ehsan_5">5★</label>
+            <input type="radio" id="r_Ehsan_6" name="rating_Ehsan" value="6"><label for="r_Ehsan_6">6★</label>
+            <input type="radio" id="r_Ehsan_7" name="rating_Ehsan" value="7"><label for="r_Ehsan_7">7★</label>
+            <input type="radio" id="r_Ehsan_8" name="rating_Ehsan" value="8"><label for="r_Ehsan_8">8★</label>
+            <input type="radio" id="r_Ehsan_9" name="rating_Ehsan" value="9"><label for="r_Ehsan_9">9★</label>
+            <input type="radio" id="r_Ehsan_10" name="rating_Ehsan" value="10"><label for="r_Ehsan_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Eric">
+          <div class="player-header"><span class="player-name m">Eric</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Eric_1" name="rating_Eric" value="1" required><label for="r_Eric_1">1★</label>
+            <input type="radio" id="r_Eric_2" name="rating_Eric" value="2"><label for="r_Eric_2">2★</label>
+            <input type="radio" id="r_Eric_3" name="rating_Eric" value="3"><label for="r_Eric_3">3★</label>
+            <input type="radio" id="r_Eric_4" name="rating_Eric" value="4"><label for="r_Eric_4">4★</label>
+            <input type="radio" id="r_Eric_5" name="rating_Eric" value="5"><label for="r_Eric_5">5★</label>
+            <input type="radio" id="r_Eric_6" name="rating_Eric" value="6"><label for="r_Eric_6">6★</label>
+            <input type="radio" id="r_Eric_7" name="rating_Eric" value="7"><label for="r_Eric_7">7★</label>
+            <input type="radio" id="r_Eric_8" name="rating_Eric" value="8"><label for="r_Eric_8">8★</label>
+            <input type="radio" id="r_Eric_9" name="rating_Eric" value="9"><label for="r_Eric_9">9★</label>
+            <input type="radio" id="r_Eric_10" name="rating_Eric" value="10"><label for="r_Eric_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Esmée">
+          <div class="player-header"><span class="player-name w">Esmée</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Esmee_1" name="rating_Esmée" value="1" required><label for="r_Esmee_1">1★</label>
+            <input type="radio" id="r_Esmee_2" name="rating_Esmée" value="2"><label for="r_Esmee_2">2★</label>
+            <input type="radio" id="r_Esmee_3" name="rating_Esmée" value="3"><label for="r_Esmee_3">3★</label>
+            <input type="radio" id="r_Esmee_4" name="rating_Esmée" value="4"><label for="r_Esmee_4">4★</label>
+            <input type="radio" id="r_Esmee_5" name="rating_Esmée" value="5"><label for="r_Esmee_5">5★</label>
+            <input type="radio" id="r_Esmee_6" name="rating_Esmée" value="6"><label for="r_Esmee_6">6★</label>
+            <input type="radio" id="r_Esmee_7" name="rating_Esmée" value="7"><label for="r_Esmee_7">7★</label>
+            <input type="radio" id="r_Esmee_8" name="rating_Esmée" value="8"><label for="r_Esmee_8">8★</label>
+            <input type="radio" id="r_Esmee_9" name="rating_Esmée" value="9"><label for="r_Esmee_9">9★</label>
+            <input type="radio" id="r_Esmee_10" name="rating_Esmée" value="10"><label for="r_Esmee_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Holger">
+          <div class="player-header"><span class="player-name m">Holger</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Holger_1" name="rating_Holger" value="1" required><label for="r_Holger_1">1★</label>
+            <input type="radio" id="r_Holger_2" name="rating_Holger" value="2"><label for="r_Holger_2">2★</label>
+            <input type="radio" id="r_Holger_3" name="rating_Holger" value="3"><label for="r_Holger_3">3★</label>
+            <input type="radio" id="r_Holger_4" name="rating_Holger" value="4"><label for="r_Holger_4">4★</label>
+            <input type="radio" id="r_Holger_5" name="rating_Holger" value="5"><label for="r_Holger_5">5★</label>
+            <input type="radio" id="r_Holger_6" name="rating_Holger" value="6"><label for="r_Holger_6">6★</label>
+            <input type="radio" id="r_Holger_7" name="rating_Holger" value="7"><label for="r_Holger_7">7★</label>
+            <input type="radio" id="r_Holger_8" name="rating_Holger" value="8"><label for="r_Holger_8">8★</label>
+            <input type="radio" id="r_Holger_9" name="rating_Holger" value="9"><label for="r_Holger_9">9★</label>
+            <input type="radio" id="r_Holger_10" name="rating_Holger" value="10"><label for="r_Holger_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Ines">
+          <div class="player-header"><span class="player-name w">Ines</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Ines_1" name="rating_Ines" value="1" required><label for="r_Ines_1">1★</label>
+            <input type="radio" id="r_Ines_2" name="rating_Ines" value="2"><label for="r_Ines_2">2★</label>
+            <input type="radio" id="r_Ines_3" name="rating_Ines" value="3"><label for="r_Ines_3">3★</label>
+            <input type="radio" id="r_Ines_4" name="rating_Ines" value="4"><label for="r_Ines_4">4★</label>
+            <input type="radio" id="r_Ines_5" name="rating_Ines" value="5"><label for="r_Ines_5">5★</label>
+            <input type="radio" id="r_Ines_6" name="rating_Ines" value="6"><label for="r_Ines_6">6★</label>
+            <input type="radio" id="r_Ines_7" name="rating_Ines" value="7"><label for="r_Ines_7">7★</label>
+            <input type="radio" id="r_Ines_8" name="rating_Ines" value="8"><label for="r_Ines_8">8★</label>
+            <input type="radio" id="r_Ines_9" name="rating_Ines" value="9"><label for="r_Ines_9">9★</label>
+            <input type="radio" id="r_Ines_10" name="rating_Ines" value="10"><label for="r_Ines_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Jan">
+          <div class="player-header"><span class="player-name m">Jan</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Jan_1" name="rating_Jan" value="1" required><label for="r_Jan_1">1★</label>
+            <input type="radio" id="r_Jan_2" name="rating_Jan" value="2"><label for="r_Jan_2">2★</label>
+            <input type="radio" id="r_Jan_3" name="rating_Jan" value="3"><label for="r_Jan_3">3★</label>
+            <input type="radio" id="r_Jan_4" name="rating_Jan" value="4"><label for="r_Jan_4">4★</label>
+            <input type="radio" id="r_Jan_5" name="rating_Jan" value="5"><label for="r_Jan_5">5★</label>
+            <input type="radio" id="r_Jan_6" name="rating_Jan" value="6"><label for="r_Jan_6">6★</label>
+            <input type="radio" id="r_Jan_7" name="rating_Jan" value="7"><label for="r_Jan_7">7★</label>
+            <input type="radio" id="r_Jan_8" name="rating_Jan" value="8"><label for="r_Jan_8">8★</label>
+            <input type="radio" id="r_Jan_9" name="rating_Jan" value="9"><label for="r_Jan_9">9★</label>
+            <input type="radio" id="r_Jan_10" name="rating_Jan" value="10"><label for="r_Jan_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Jenny">
+          <div class="player-header"><span class="player-name w">Jenny</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Jenny_1" name="rating_Jenny" value="1" required><label for="r_Jenny_1">1★</label>
+            <input type="radio" id="r_Jenny_2" name="rating_Jenny" value="2"><label for="r_Jenny_2">2★</label>
+            <input type="radio" id="r_Jenny_3" name="rating_Jenny" value="3"><label for="r_Jenny_3">3★</label>
+            <input type="radio" id="r_Jenny_4" name="rating_Jenny" value="4"><label for="r_Jenny_4">4★</label>
+            <input type="radio" id="r_Jenny_5" name="rating_Jenny" value="5"><label for="r_Jenny_5">5★</label>
+            <input type="radio" id="r_Jenny_6" name="rating_Jenny" value="6"><label for="r_Jenny_6">6★</label>
+            <input type="radio" id="r_Jenny_7" name="rating_Jenny" value="7"><label for="r_Jenny_7">7★</label>
+            <input type="radio" id="r_Jenny_8" name="rating_Jenny" value="8"><label for="r_Jenny_8">8★</label>
+            <input type="radio" id="r_Jenny_9" name="rating_Jenny" value="9"><label for="r_Jenny_9">9★</label>
+            <input type="radio" id="r_Jenny_10" name="rating_Jenny" value="10"><label for="r_Jenny_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Magda">
+          <div class="player-header"><span class="player-name w">Magda</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Magda_1" name="rating_Magda" value="1" required><label for="r_Magda_1">1★</label>
+            <input type="radio" id="r_Magda_2" name="rating_Magda" value="2"><label for="r_Magda_2">2★</label>
+            <input type="radio" id="r_Magda_3" name="rating_Magda" value="3"><label for="r_Magda_3">3★</label>
+            <input type="radio" id="r_Magda_4" name="rating_Magda" value="4"><label for="r_Magda_4">4★</label>
+            <input type="radio" id="r_Magda_5" name="rating_Magda" value="5"><label for="r_Magda_5">5★</label>
+            <input type="radio" id="r_Magda_6" name="rating_Magda" value="6"><label for="r_Magda_6">6★</label>
+            <input type="radio" id="r_Magda_7" name="rating_Magda" value="7"><label for="r_Magda_7">7★</label>
+            <input type="radio" id="r_Magda_8" name="rating_Magda" value="8"><label for="r_Magda_8">8★</label>
+            <input type="radio" id="r_Magda_9" name="rating_Magda" value="9"><label for="r_Magda_9">9★</label>
+            <input type="radio" id="r_Magda_10" name="rating_Magda" value="10"><label for="r_Magda_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Marc B">
+          <div class="player-header"><span class="player-name m">Marc B</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_MarcB_1" name="rating_Marc B" value="1" required><label for="r_MarcB_1">1★</label>
+            <input type="radio" id="r_MarcB_2" name="rating_Marc B" value="2"><label for="r_MarcB_2">2★</label>
+            <input type="radio" id="r_MarcB_3" name="rating_Marc B" value="3"><label for="r_MarcB_3">3★</label>
+            <input type="radio" id="r_MarcB_4" name="rating_Marc B" value="4"><label for="r_MarcB_4">4★</label>
+            <input type="radio" id="r_MarcB_5" name="rating_Marc B" value="5"><label for="r_MarcB_5">5★</label>
+            <input type="radio" id="r_MarcB_6" name="rating_Marc B" value="6"><label for="r_MarcB_6">6★</label>
+            <input type="radio" id="r_MarcB_7" name="rating_Marc B" value="7"><label for="r_MarcB_7">7★</label>
+            <input type="radio" id="r_MarcB_8" name="rating_Marc B" value="8"><label for="r_MarcB_8">8★</label>
+            <input type="radio" id="r_MarcB_9" name="rating_Marc B" value="9"><label for="r_MarcB_9">9★</label>
+            <input type="radio" id="r_MarcB_10" name="rating_Marc B" value="10"><label for="r_MarcB_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Marc O">
+          <div class="player-header"><span class="player-name m">Marc O</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_MarcO_1" name="rating_Marc O" value="1" required><label for="r_MarcO_1">1★</label>
+            <input type="radio" id="r_MarcO_2" name="rating_Marc O" value="2"><label for="r_MarcO_2">2★</label>
+            <input type="radio" id="r_MarcO_3" name="rating_Marc O" value="3"><label for="r_MarcO_3">3★</label>
+            <input type="radio" id="r_MarcO_4" name="rating_Marc O" value="4"><label for="r_MarcO_4">4★</label>
+            <input type="radio" id="r_MarcO_5" name="rating_Marc O" value="5"><label for="r_MarcO_5">5★</label>
+            <input type="radio" id="r_MarcO_6" name="rating_Marc O" value="6"><label for="r_MarcO_6">6★</label>
+            <input type="radio" id="r_MarcO_7" name="rating_Marc O" value="7"><label for="r_MarcO_7">7★</label>
+            <input type="radio" id="r_MarcO_8" name="rating_Marc O" value="8"><label for="r_MarcO_8">8★</label>
+            <input type="radio" id="r_MarcO_9" name="rating_Marc O" value="9"><label for="r_MarcO_9">9★</label>
+            <input type="radio" id="r_MarcO_10" name="rating_Marc O" value="10"><label for="r_MarcO_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Michael">
+          <div class="player-header"><span class="player-name m">Michael</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Michael_1" name="rating_Michael" value="1" required><label for="r_Michael_1">1★</label>
+            <input type="radio" id="r_Michael_2" name="rating_Michael" value="2"><label for="r_Michael_2">2★</label>
+            <input type="radio" id="r_Michael_3" name="rating_Michael" value="3"><label for="r_Michael_3">3★</label>
+            <input type="radio" id="r_Michael_4" name="rating_Michael" value="4"><label for="r_Michael_4">4★</label>
+            <input type="radio" id="r_Michael_5" name="rating_Michael" value="5"><label for="r_Michael_5">5★</label>
+            <input type="radio" id="r_Michael_6" name="rating_Michael" value="6"><label for="r_Michael_6">6★</label>
+            <input type="radio" id="r_Michael_7" name="rating_Michael" value="7"><label for="r_Michael_7">7★</label>
+            <input type="radio" id="r_Michael_8" name="rating_Michael" value="8"><label for="r_Michael_8">8★</label>
+            <input type="radio" id="r_Michael_9" name="rating_Michael" value="9"><label for="r_Michael_9">9★</label>
+            <input type="radio" id="r_Michael_10" name="rating_Michael" value="10"><label for="r_Michael_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Nico">
+          <div class="player-header"><span class="player-name m">Nico</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Nico_1" name="rating_Nico" value="1" required><label for="r_Nico_1">1★</label>
+            <input type="radio" id="r_Nico_2" name="rating_Nico" value="2"><label for="r_Nico_2">2★</label>
+            <input type="radio" id="r_Nico_3" name="rating_Nico" value="3"><label for="r_Nico_3">3★</label>
+            <input type="radio" id="r_Nico_4" name="rating_Nico" value="4"><label for="r_Nico_4">4★</label>
+            <input type="radio" id="r_Nico_5" name="rating_Nico" value="5"><label for="r_Nico_5">5★</label>
+            <input type="radio" id="r_Nico_6" name="rating_Nico" value="6"><label for="r_Nico_6">6★</label>
+            <input type="radio" id="r_Nico_7" name="rating_Nico" value="7"><label for="r_Nico_7">7★</label>
+            <input type="radio" id="r_Nico_8" name="rating_Nico" value="8"><label for="r_Nico_8">8★</label>
+            <input type="radio" id="r_Nico_9" name="rating_Nico" value="9"><label for="r_Nico_9">9★</label>
+            <input type="radio" id="r_Nico_10" name="rating_Nico" value="10"><label for="r_Nico_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Pascal">
+          <div class="player-header"><span class="player-name m">Pascal</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Pascal_1" name="rating_Pascal" value="1" required><label for="r_Pascal_1">1★</label>
+            <input type="radio" id="r_Pascal_2" name="rating_Pascal" value="2"><label for="r_Pascal_2">2★</label>
+            <input type="radio" id="r_Pascal_3" name="rating_Pascal" value="3"><label for="r_Pascal_3">3★</label>
+            <input type="radio" id="r_Pascal_4" name="rating_Pascal" value="4"><label for="r_Pascal_4">4★</label>
+            <input type="radio" id="r_Pascal_5" name="rating_Pascal" value="5"><label for="r_Pascal_5">5★</label>
+            <input type="radio" id="r_Pascal_6" name="rating_Pascal" value="6"><label for="r_Pascal_6">6★</label>
+            <input type="radio" id="r_Pascal_7" name="rating_Pascal" value="7"><label for="r_Pascal_7">7★</label>
+            <input type="radio" id="r_Pascal_8" name="rating_Pascal" value="8"><label for="r_Pascal_8">8★</label>
+            <input type="radio" id="r_Pascal_9" name="rating_Pascal" value="9"><label for="r_Pascal_9">9★</label>
+            <input type="radio" id="r_Pascal_10" name="rating_Pascal" value="10"><label for="r_Pascal_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Piotr">
+          <div class="player-header"><span class="player-name m">Piotr</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Piotr_1" name="rating_Piotr" value="1" required><label for="r_Piotr_1">1★</label>
+            <input type="radio" id="r_Piotr_2" name="rating_Piotr" value="2"><label for="r_Piotr_2">2★</label>
+            <input type="radio" id="r_Piotr_3" name="rating_Piotr" value="3"><label for="r_Piotr_3">3★</label>
+            <input type="radio" id="r_Piotr_4" name="rating_Piotr" value="4"><label for="r_Piotr_4">4★</label>
+            <input type="radio" id="r_Piotr_5" name="rating_Piotr" value="5"><label for="r_Piotr_5">5★</label>
+            <input type="radio" id="r_Piotr_6" name="rating_Piotr" value="6"><label for="r_Piotr_6">6★</label>
+            <input type="radio" id="r_Piotr_7" name="rating_Piotr" value="7"><label for="r_Piotr_7">7★</label>
+            <input type="radio" id="r_Piotr_8" name="rating_Piotr" value="8"><label for="r_Piotr_8">8★</label>
+            <input type="radio" id="r_Piotr_9" name="rating_Piotr" value="9"><label for="r_Piotr_9">9★</label>
+            <input type="radio" id="r_Piotr_10" name="rating_Piotr" value="10"><label for="r_Piotr_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Sabina">
+          <div class="player-header"><span class="player-name w">Sabina</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Sabina_1" name="rating_Sabina" value="1" required><label for="r_Sabina_1">1★</label>
+            <input type="radio" id="r_Sabina_2" name="rating_Sabina" value="2"><label for="r_Sabina_2">2★</label>
+            <input type="radio" id="r_Sabina_3" name="rating_Sabina" value="3"><label for="r_Sabina_3">3★</label>
+            <input type="radio" id="r_Sabina_4" name="rating_Sabina" value="4"><label for="r_Sabina_4">4★</label>
+            <input type="radio" id="r_Sabina_5" name="rating_Sabina" value="5"><label for="r_Sabina_5">5★</label>
+            <input type="radio" id="r_Sabina_6" name="rating_Sabina" value="6"><label for="r_Sabina_6">6★</label>
+            <input type="radio" id="r_Sabina_7" name="rating_Sabina" value="7"><label for="r_Sabina_7">7★</label>
+            <input type="radio" id="r_Sabina_8" name="rating_Sabina" value="8"><label for="r_Sabina_8">8★</label>
+            <input type="radio" id="r_Sabina_9" name="rating_Sabina" value="9"><label for="r_Sabina_9">9★</label>
+            <input type="radio" id="r_Sabina_10" name="rating_Sabina" value="10"><label for="r_Sabina_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Silvia">
+          <div class="player-header"><span class="player-name w">Silvia</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Silvia_1" name="rating_Silvia" value="1" required><label for="r_Silvia_1">1★</label>
+            <input type="radio" id="r_Silvia_2" name="rating_Silvia" value="2"><label for="r_Silvia_2">2★</label>
+            <input type="radio" id="r_Silvia_3" name="rating_Silvia" value="3"><label for="r_Silvia_3">3★</label>
+            <input type="radio" id="r_Silvia_4" name="rating_Silvia" value="4"><label for="r_Silvia_4">4★</label>
+            <input type="radio" id="r_Silvia_5" name="rating_Silvia" value="5"><label for="r_Silvia_5">5★</label>
+            <input type="radio" id="r_Silvia_6" name="rating_Silvia" value="6"><label for="r_Silvia_6">6★</label>
+            <input type="radio" id="r_Silvia_7" name="rating_Silvia" value="7"><label for="r_Silvia_7">7★</label>
+            <input type="radio" id="r_Silvia_8" name="rating_Silvia" value="8"><label for="r_Silvia_8">8★</label>
+            <input type="radio" id="r_Silvia_9" name="rating_Silvia" value="9"><label for="r_Silvia_9">9★</label>
+            <input type="radio" id="r_Silvia_10" name="rating_Silvia" value="10"><label for="r_Silvia_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Simon">
+          <div class="player-header"><span class="player-name m">Simon</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Simon_1" name="rating_Simon" value="1" required><label for="r_Simon_1">1★</label>
+            <input type="radio" id="r_Simon_2" name="rating_Simon" value="2"><label for="r_Simon_2">2★</label>
+            <input type="radio" id="r_Simon_3" name="rating_Simon" value="3"><label for="r_Simon_3">3★</label>
+            <input type="radio" id="r_Simon_4" name="rating_Simon" value="4"><label for="r_Simon_4">4★</label>
+            <input type="radio" id="r_Simon_5" name="rating_Simon" value="5"><label for="r_Simon_5">5★</label>
+            <input type="radio" id="r_Simon_6" name="rating_Simon" value="6"><label for="r_Simon_6">6★</label>
+            <input type="radio" id="r_Simon_7" name="rating_Simon" value="7"><label for="r_Simon_7">7★</label>
+            <input type="radio" id="r_Simon_8" name="rating_Simon" value="8"><label for="r_Simon_8">8★</label>
+            <input type="radio" id="r_Simon_9" name="rating_Simon" value="9"><label for="r_Simon_9">9★</label>
+            <input type="radio" id="r_Simon_10" name="rating_Simon" value="10"><label for="r_Simon_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Tanja">
+          <div class="player-header"><span class="player-name w">Tanja</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Tanja_1" name="rating_Tanja" value="1" required><label for="r_Tanja_1">1★</label>
+            <input type="radio" id="r_Tanja_2" name="rating_Tanja" value="2"><label for="r_Tanja_2">2★</label>
+            <input type="radio" id="r_Tanja_3" name="rating_Tanja" value="3"><label for="r_Tanja_3">3★</label>
+            <input type="radio" id="r_Tanja_4" name="rating_Tanja" value="4"><label for="r_Tanja_4">4★</label>
+            <input type="radio" id="r_Tanja_5" name="rating_Tanja" value="5"><label for="r_Tanja_5">5★</label>
+            <input type="radio" id="r_Tanja_6" name="rating_Tanja" value="6"><label for="r_Tanja_6">6★</label>
+            <input type="radio" id="r_Tanja_7" name="rating_Tanja" value="7"><label for="r_Tanja_7">7★</label>
+            <input type="radio" id="r_Tanja_8" name="rating_Tanja" value="8"><label for="r_Tanja_8">8★</label>
+            <input type="radio" id="r_Tanja_9" name="rating_Tanja" value="9"><label for="r_Tanja_9">9★</label>
+            <input type="radio" id="r_Tanja_10" name="rating_Tanja" value="10"><label for="r_Tanja_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Thomas">
+          <div class="player-header"><span class="player-name m">Thomas</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Thomas_1" name="rating_Thomas" value="1" required><label for="r_Thomas_1">1★</label>
+            <input type="radio" id="r_Thomas_2" name="rating_Thomas" value="2"><label for="r_Thomas_2">2★</label>
+            <input type="radio" id="r_Thomas_3" name="rating_Thomas" value="3"><label for="r_Thomas_3">3★</label>
+            <input type="radio" id="r_Thomas_4" name="rating_Thomas" value="4"><label for="r_Thomas_4">4★</label>
+            <input type="radio" id="r_Thomas_5" name="rating_Thomas" value="5"><label for="r_Thomas_5">5★</label>
+            <input type="radio" id="r_Thomas_6" name="rating_Thomas" value="6"><label for="r_Thomas_6">6★</label>
+            <input type="radio" id="r_Thomas_7" name="rating_Thomas" value="7"><label for="r_Thomas_7">7★</label>
+            <input type="radio" id="r_Thomas_8" name="rating_Thomas" value="8"><label for="r_Thomas_8">8★</label>
+            <input type="radio" id="r_Thomas_9" name="rating_Thomas" value="9"><label for="r_Thomas_9">9★</label>
+            <input type="radio" id="r_Thomas_10" name="rating_Thomas" value="10"><label for="r_Thomas_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Tim">
+          <div class="player-header"><span class="player-name m">Tim</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Tim_1" name="rating_Tim" value="1" required><label for="r_Tim_1">1★</label>
+            <input type="radio" id="r_Tim_2" name="rating_Tim" value="2"><label for="r_Tim_2">2★</label>
+            <input type="radio" id="r_Tim_3" name="rating_Tim" value="3"><label for="r_Tim_3">3★</label>
+            <input type="radio" id="r_Tim_4" name="rating_Tim" value="4"><label for="r_Tim_4">4★</label>
+            <input type="radio" id="r_Tim_5" name="rating_Tim" value="5"><label for="r_Tim_5">5★</label>
+            <input type="radio" id="r_Tim_6" name="rating_Tim" value="6"><label for="r_Tim_6">6★</label>
+            <input type="radio" id="r_Tim_7" name="rating_Tim" value="7"><label for="r_Tim_7">7★</label>
+            <input type="radio" id="r_Tim_8" name="rating_Tim" value="8"><label for="r_Tim_8">8★</label>
+            <input type="radio" id="r_Tim_9" name="rating_Tim" value="9"><label for="r_Tim_9">9★</label>
+            <input type="radio" id="r_Tim_10" name="rating_Tim" value="10"><label for="r_Tim_10">10★</label>
+          </div>
+        </div>
+
+        <div class="player-row" data-player-name="Volker">
+          <div class="player-header"><span class="player-name m">Volker</span></div>
+          <div class="rating-options">
+            <input type="radio" id="r_Volker_1" name="rating_Volker" value="1" required><label for="r_Volker_1">1★</label>
+            <input type="radio" id="r_Volker_2" name="rating_Volker" value="2"><label for="r_Volker_2">2★</label>
+            <input type="radio" id="r_Volker_3" name="rating_Volker" value="3"><label for="r_Volker_3">3★</label>
+            <input type="radio" id="r_Volker_4" name="rating_Volker" value="4"><label for="r_Volker_4">4★</label>
+            <input type="radio" id="r_Volker_5" name="rating_Volker" value="5"><label for="r_Volker_5">5★</label>
+            <input type="radio" id="r_Volker_6" name="rating_Volker" value="6"><label for="r_Volker_6">6★</label>
+            <input type="radio" id="r_Volker_7" name="rating_Volker" value="7"><label for="r_Volker_7">7★</label>
+            <input type="radio" id="r_Volker_8" name="rating_Volker" value="8"><label for="r_Volker_8">8★</label>
+            <input type="radio" id="r_Volker_9" name="rating_Volker" value="9"><label for="r_Volker_9">9★</label>
+            <input type="radio" id="r_Volker_10" name="rating_Volker" value="10"><label for="r_Volker_10">10★</label>
+          </div>
+        </div>
+
+      </div>
+
+      <button type="button" id="submitBtn" class="btn-submit">💾 Bewertung abspeichern / kopieren</button>
+    </div>
+
+    <div id="resultPanel">
+      <div class="result-success">✅ Danke, <span id="raterNameDisplay"></span>! Deine Bewertung ist fertig.</div>
+      <p class="result-hint">Tippe auf „Kopieren“ und füge den Text danach im WhatsApp-Chat ein (Textfeld antippen → „Einfügen“).</p>
+      <textarea id="resultText" readonly rows="10"></textarea>
+      <button type="button" id="copyBtn" class="btn-submit">📋 In Zwischenablage kopieren</button>
+      <p id="copyStatus" class="copy-status"></p>
+      <button type="button" id="backBtn" class="btn-secondary">⬅️ Zurück zum Formular</button>
+    </div>
+  </div>
+
+  <script>
+    function collectResults() {
+      const rater = document.getElementById('raterSelect').value;
+      const ownPos = document.getElementById('raterPosition').value;
+
+      if (!rater || !ownPos) {
+        alert('Bitte wähle deinen Namen und deine Lieblingsposition aus.');
+        return null;
+      }
+
+      const results = {
+        rater: rater,
+        raterPreferredPosition: ownPos,
+        timestamp: new Date().toISOString(),
+        ratings: {}
+      };
+
+      let missingRating = false;
+      document.querySelectorAll('.player-row').forEach(row => {
+        const playerName = row.dataset.playerName;
+        const checkedRadio = row.querySelector(`input[name="rating_${playerName}"]:checked`);
+        if (!checkedRadio) {
+          missingRating = true;
+          return;
+        }
+        results.ratings[playerName] = { stars: parseInt(checkedRadio.value, 10) };
+      });
+
+      if (missingRating) {
+        alert('Bitte bewerte alle Spieler mit einer Sternen-Anzahl.');
+        return null;
+      }
+
+      return results;
+    }
+
+    function fallbackCopy(status) {
+      let copied = false;
+      try {
+        copied = document.execCommand('copy');
+      } catch (err) {
+        copied = false;
+      }
+      status.textContent = copied
+        ? '✅ Kopiert! Jetzt im WhatsApp-Chat einfügen.'
+        : '⚠️ Kopieren hat nicht automatisch geklappt – der Text ist markiert, bitte gedrückt halten → „Kopieren“ wählen.';
+    }
+
+    function copyResultText() {
+      const textarea = document.getElementById('resultText');
+      const status = document.getElementById('copyStatus');
+
+      textarea.focus();
+      textarea.select();
+      textarea.setSelectionRange(0, textarea.value.length);
+
+      if (window.isSecureContext && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(textarea.value).then(() => {
+          status.textContent = '✅ Kopiert! Jetzt im WhatsApp-Chat einfügen.';
+        }).catch(() => fallbackCopy(status));
+      } else {
+        fallbackCopy(status);
+      }
+    }
+
+    function showResultPanel(results) {
+      const jsonString = JSON.stringify(results, null, 2);
+      const fileName = `rating_${results.rater.toLowerCase().replace(/\s+/g, '_')}.json`;
+
+      document.getElementById('ratingForm').style.display = 'none';
+      document.getElementById('raterNameDisplay').textContent = results.rater;
+
+      const textarea = document.getElementById('resultText');
+      textarea.value = jsonString;
+
+      const status = document.getElementById('copyStatus');
+      status.textContent = '';
+
+      const panel = document.getElementById('resultPanel');
+      panel.style.display = 'flex';
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    document.getElementById('submitBtn').addEventListener('click', function () {
+      const results = collectResults();
+      if (results) {
+        showResultPanel(results);
+      }
+    });
+
+    document.getElementById('copyBtn').addEventListener('click', copyResultText);
+
+    document.getElementById('backBtn').addEventListener('click', () => {
+      document.getElementById('resultPanel').style.display = 'none';
+      document.getElementById('ratingForm').style.display = 'block';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  </script>
+</body>
+</html>
